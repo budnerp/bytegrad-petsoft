@@ -1,0 +1,12 @@
+{
+  "yaml.schemas": {
+    "none": [],
+    "file:///c%3A/Users/Piotrek/.vscode/extensions/continue.continue-1.2.14-win32-x64/config-yaml-schema.json": [
+      ".continue/**/*.yaml"
+    ],
+    "file:///c%3A/Users/Piotrek/.vscode/extensions/continue.continue-1.2.11-win32-x64/config-yaml-schema.json": [
+      ".continue/**/*.yaml",
+      "file:///c%3A/Users/Piotrek/.continue/config.yaml"
+    ]
+  }
+}
