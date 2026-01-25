@@ -31,7 +31,7 @@ export default function PetForm({
     resolver: zodResolver(petFormSchema),
     defaultValues:
       actionType === "add"
-        ? {}
+        ? undefined
         : {
             ...selectedPet,
           },

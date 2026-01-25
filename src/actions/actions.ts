@@ -1,14 +1,105 @@
 "use server";
 
+import { signIn, signOut } from "@/lib/auth";
 import prisma from "@/lib/db";
-import { PetEssentials } from "@/lib/types";
 import { sleep } from "@/lib/utils";
-import { petFormSchema, petIdSchema } from "@/lib/validations";
-import { Pet } from "@prisma/client";
+import { authSchema, petFormSchema, petIdSchema } from "@/lib/validations";
+import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { checkAuth } from "@/lib/server-utils";
+import { Prisma } from "@prisma/client";
+import { AuthError } from "next-auth";
 
+// --------- user actions ------------------
+export async function logIn(prevState: unknown, formData: unknown) {
+  await sleep(1000);
+
+  // check if form data is a FormData type
+  if (!(formData instanceof FormData)) {
+    return {
+      message: "Invalid form data",
+    };
+  }
+
+  try {
+    await signIn("credentials", formData);
+  } catch (error) {
+    if (error instanceof AuthError) {
+      switch (error.type) {
+        case "CredentialsSignin":
+          return {
+            message: "Invalid credentials",
+          };
+        default:
+          return {
+            message: "Error with signing in",
+          };
+      }
+    }
+
+    // nextjs redirects by throwing error, so we need to rethrow it
+    throw error;
+  }
+}
+
+export async function logOut() {
+  await sleep(1000);
+
+  await signOut({
+    redirectTo: "/",
+  });
+}
+
+export async function signUp(prevState: unknown, formData: unknown) {
+  await sleep(1000);
+
+  // check if form data is a FormData type
+  if (!(formData instanceof FormData)) {
+    return {
+      message: "Invalid form data",
+    };
+  }
+
+  // convert formData to a plain object
+  const formDataEntries = Object.fromEntries(formData.entries());
+
+  // validation
+  const validatedFormData = authSchema.safeParse(formDataEntries);
+  if (!validatedFormData.success) {
+    return null;
+  }
+
+  // mutate DB
+  const { email, password } = validatedFormData.data;
+  const hashedPassword = await bcrypt.hash(password, 10);
+
+  try {
+    await prisma?.user.create({
+      data: {
+        email,
+        hashedPassword,
+      },
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === "P2002") {
+        return {
+          message: "Invalid credentials",
+        };
+      }
+    }
+    return { message: "Could not create acconut" };
+  }
+
+  await signIn("credentials", formData);
+}
+
+// --------- pet actions ------------------
 export async function addPet(petData: unknown) {
   await sleep(1000);
+
+  const session = await checkAuth();
 
   const validatedPet = petFormSchema.safeParse(petData);
   if (!validatedPet.success) {
@@ -19,7 +110,14 @@ export async function addPet(petData: unknown) {
 
   try {
     await prisma.pet.create({
-      data: validatedPet.data,
+      data: {
+        ...validatedPet.data,
+        user: {
+          connect: {
+            id: session.user.id,
+          },
+        },
+      },
     });
   } catch (error) {
     return { message: "Could not add pet" };
@@ -31,6 +129,8 @@ export async function addPet(petData: unknown) {
 export async function editPet(petId: unknown, newPetData: unknown) {
   await sleep(1000);
 
+  const session = await checkAuth();
+
   const validatedPetId = petIdSchema.safeParse(petId);
   const validatedPet = petFormSchema.safeParse(newPetData);
   if (!validatedPetId.success || !validatedPet.success) {
@@ -41,7 +141,7 @@ export async function editPet(petId: unknown, newPetData: unknown) {
 
   try {
     await prisma.pet.update({
-      where: { id: validatedPetId.data },
+      where: { id: validatedPetId.data, userId: session.user.id },
       data: validatedPet.data,
     });
   } catch (error) {
@@ -54,6 +154,8 @@ export async function editPet(petId: unknown, newPetData: unknown) {
 export async function deletePet(petId: unknown) {
   await sleep(1000);
 
+  const session = await checkAuth();
+
   const validatedPetId = petIdSchema.safeParse(petId);
   if (!validatedPetId.success) {
     return {
@@ -63,7 +165,7 @@ export async function deletePet(petId: unknown) {
 
   try {
     await prisma.pet.delete({
-      where: { id: validatedPetId.data },
+      where: { id: validatedPetId.data, userId: session.user.id },
     });
   } catch (error) {
     return { message: "Could not delete pet" };

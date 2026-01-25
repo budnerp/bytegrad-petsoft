@@ -29,3 +29,10 @@ export const petFormSchema = z
   }));
 
 export type TPetForm = z.infer<typeof petFormSchema>;
+
+export const authSchema = z.object({
+  email: z.string().trim().email({ message: "Email is required" }).max(100),
+  password: z.string().trim(),
+});
+
+export type TAuth = z.infer<typeof authSchema>;
