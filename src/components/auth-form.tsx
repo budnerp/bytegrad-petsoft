@@ -18,7 +18,7 @@ export default function AuthForm({ type }: AuthFormProps) {
     <form action={type === "logIn" ? dispatchLogIn : dispatchSignUp}>
       <div className="space-y-1">
         <Label htmlFor="email">Email</Label>
-        <Input id="eamil" type="email" name="email" required maxLength={100} />
+        <Input id="email" type="email" name="email" required maxLength={100} />
       </div>
       <div className="mb-4 mt-2 space-y-1">
         <Label htmlFor="password">Password</Label>
